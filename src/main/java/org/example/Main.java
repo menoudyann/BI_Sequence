@@ -2,6 +2,7 @@ package org.example;
 
 import com.google.gson.Gson;
 import com.google.gson.reflect.TypeToken;
+import io.github.cdimascio.dotenv.Dotenv;
 
 import java.io.BufferedWriter;
 import java.io.File;
@@ -11,25 +12,24 @@ import java.lang.reflect.Type;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.net.URL;
-import java.nio.file.Files;
-import java.nio.file.Paths;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
-import java.util.Date;
 import java.util.List;
 
 public class Main {
     public static void main(String[] args) throws ObjectNotFoundException, IOException, URISyntaxException {
 
+        Dotenv dotenv = Dotenv.load();
+
         GoogleDataObjectImpl dataObject = new GoogleDataObjectImpl("GOOGLE_APPLICATION_CREDENTIALS");
         GoogleLabelDetectorImpl labelDetector = new GoogleLabelDetectorImpl("GOOGLE_APPLICATION_CREDENTIALS");
 
-        URI remoteFullPath = URI.create("gs://java.gogle.cld.education/testSequence.png");
-        URI localFullPath = URI.create("file:///Users/yannmenoud/Desktop/CPNV/BI/Sequence/src/main/java/org/example/datas/testLabelDetector.jpg");
+        URI remoteFullPath = URI.create(dotenv.get("GOOGLE_BUCKET_URI") + "testSequence.png");
+        URI localFullPath = new File("images/testLabelDetector.jpg").toURI();
 
         dataObject.callAPI(remoteFullPath, localFullPath);
 
-        URL url = dataObject.publish(URI.create("gs://java.gogle.cld.education/voiturerue.jpg"), 90);
+        URL url = dataObject.publish(remoteFullPath, 90);
 
         String response = labelDetector.analyze(url, 10, 90);
         Gson gson = new Gson();
@@ -41,7 +41,7 @@ public class Main {
         DateTimeFormatter formatter = DateTimeFormatter.ofPattern("MMddyyyyHHmmss");
         String formattedDateTime = currentDateTime.format(formatter);
 
-        String filePath = "/Users/yannmenoud/Desktop/CPNV/BI/Sequence/src/main/java/org/example/sql/" + formattedDateTime + ".sql";
+        String filePath = "./src/main/java/org/example/sql/" + formattedDateTime + ".sql";
 
         File file = new File(filePath);
 
@@ -63,6 +63,7 @@ public class Main {
             e.printStackTrace();
         }
 
-        dataObject.upload(URI.create("file:///Users/yannmenoud/Desktop/CPNV/BI/Sequence/src/main/java/org/example/sql/" + formattedDateTime + ".sql"), URI.create("gs://java.gogle.cld.education/" + formattedDateTime + ".sql"));
+        URI sqlLocalFile = new File("./src/main/java/org/example/sql/" + formattedDateTime + ".sql").toURI();
+        dataObject.upload(sqlLocalFile, URI.create(dotenv.get("GOOGLE_BUCKET_URI") + formattedDateTime + ".sql"));
     }
 }

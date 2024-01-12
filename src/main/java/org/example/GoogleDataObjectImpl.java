@@ -45,11 +45,15 @@ public class GoogleDataObjectImpl implements IDataObject {
                 result = bucket.exists();
             }
         } else {
-            BlobId blobId = BlobId.of(remoteFullPath.getHost(), remoteFullPath.getPath().substring(1));
-            Blob blob = storage.get(blobId);
-            if (blob != null) {
-                result = blob.exists();
+            Page<Blob> blobs =
+                    storage.list(
+                            remoteFullPath.getHost(),
+                            Storage.BlobListOption.prefix(remoteFullPath.getPath().substring(1)));
+            int size = 0;
+            for (Blob blob : blobs.iterateAll()) {
+                size++;
             }
+            return size > 0;
         }
         return result;
     }
@@ -57,21 +61,16 @@ public class GoogleDataObjectImpl implements IDataObject {
     @Override
     public void upload(URI localFullPath, URI remoteFullPath) throws IOException {
 
-        // Get bucket name and object name
         String bucketName = remoteFullPath.getHost();
-        String objectName = remoteFullPath.getPath().substring(remoteFullPath.getPath().lastIndexOf('/') + 1);
+        String objectName = remoteFullPath.getPath().substring(1);
 
-
-        // Get file path
         Path path = Paths.get(localFullPath);
 
-        // Check if file exists
         File file = path.toFile();
         if (!file.exists()) {
             System.out.println("File not found");
         }
 
-        // Upload file
         BlobId blobId = BlobId.of(bucketName, objectName);
         BlobInfo blobInfo = BlobInfo.newBuilder(blobId).build();
         storage.createFrom(blobInfo, path);
@@ -80,11 +79,9 @@ public class GoogleDataObjectImpl implements IDataObject {
     @Override
     public void download(URI localFullPath, URI remoteFullPath) throws ObjectNotFoundException {
 
-        // Get bucket name and object name
         String bucketName = remoteFullPath.getHost();
-        String objectName = remoteFullPath.getPath().substring(remoteFullPath.getPath().lastIndexOf('/') + 1);
+        String objectName = remoteFullPath.getPath().substring(1);
 
-        // Download file
         try {
             Blob blob = storage.get(BlobId.of(bucketName, objectName));
             blob.downloadTo(Paths.get(localFullPath));
@@ -94,21 +91,17 @@ public class GoogleDataObjectImpl implements IDataObject {
 
     }
 
-
     @Override
     public URL publish(URI remoteFullPath, int expirationTime) throws ObjectNotFoundException {
 
-        // Get bucket name and object name
         String bucketName = remoteFullPath.getHost();
-        String objectName = remoteFullPath.getPath().substring(remoteFullPath.getPath().lastIndexOf('/') + 1);
+        String objectName = remoteFullPath.getPath().substring(1);
 
-        // Get blob
         Blob blob = storage.get(BlobId.of(bucketName, objectName));
         if (blob == null) {
             throw new ObjectNotFoundException();
         }
 
-        // Get url
         return blob.signUrl(expirationTime, TimeUnit.SECONDS);
     }
 
@@ -116,7 +109,7 @@ public class GoogleDataObjectImpl implements IDataObject {
     public void remove(URI remoteFullPath, boolean isRecursive) {
 
         String bucketName = remoteFullPath.getHost();
-        String objectName = remoteFullPath.getPath().substring(remoteFullPath.getPath().lastIndexOf('/') + 1);
+        String objectName = remoteFullPath.getPath().substring(1);
 
         if (isRecursive) {
             Page<Blob> blobs = storage.list(bucketName, Storage.BlobListOption.prefix(objectName));
@@ -128,14 +121,14 @@ public class GoogleDataObjectImpl implements IDataObject {
             if (blob == null) {
                 return;
             }
+            storage.delete(bucketName, objectName);
         }
-
-        storage.delete(bucketName, objectName);
     }
 
     public void callAPI(URI remoteFullPath, URI localFullPath) throws IOException {
-        if (doesExist(remoteFullPath)){
+        if (!doesExist(remoteFullPath)) {
             upload(localFullPath, remoteFullPath);
         }
     }
+
 }
