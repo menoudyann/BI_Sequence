@@ -31,11 +31,12 @@ public class Main {
 
         URL url = dataObject.publish(remoteFullPath, 90);
 
-        String response = labelDetector.analyze(url, 10, 90);
+        String response = labelDetector.analyze(url, 2, 20);
         Gson gson = new Gson();
         Type labelListType = new TypeToken<List<Label>>() {
         }.getType();
         List<Label> labels = gson.fromJson(response, labelListType);
+
 
         LocalDateTime currentDateTime = LocalDateTime.now();
         DateTimeFormatter formatter = DateTimeFormatter.ofPattern("MMddyyyyHHmmss");
